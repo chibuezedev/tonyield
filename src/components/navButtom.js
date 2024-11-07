@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { Home, Trophy, Users, Coins } from "lucide-react";
+import { Home, Trophy, Users, Coins, BuildingIcon } from "lucide-react";
 import FriendsInvite from "../pages/invite";
 import EarnTasks from "../pages/task";
 import Leaderboard from "../pages/leaderboard";
 import HomePage from "./home";
+// import StakingPools from "../pages/staking";
+
 
 const BottomNavigation = () => {
-
   const [activeTab, setActiveTab] = useState("home");
 
   const navItems = [
@@ -20,6 +21,12 @@ const BottomNavigation = () => {
       icon: Coins,
       name: "earn",
       label: "Earn",
+      content: <EarnTasks />,
+    },
+    {
+      icon: BuildingIcon,
+      name: "stake",
+      label: "Farming/Pool",
       content: <EarnTasks />,
     },
     {
@@ -47,7 +54,7 @@ const BottomNavigation = () => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex-grow">{ActiveContent}</div>
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg flex justify-around py-2">
+      <div className="fixed bottom-0 left-0 right-0 shadow-lg flex justify-around py-2">
         {navItems.map((item) => (
           <button
             key={item.name}

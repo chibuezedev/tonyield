@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <!-- Small center dot -->
+      <circle cx="16" cy="16" r="1" fill="white" fill-opacity="0.3" />
+      
+      <!-- Smaller corner dots -->
+      <circle cx="0" cy="0" r="0.5" fill="white" fill-opacity="0.2" />
+      <circle cx="0" cy="32" r="0.5" fill="white" fill-opacity="0.2" />
+      <circle cx="32" cy="0" r="0.5" fill="white" fill-opacity="0.2" />
+      <circle cx="32" cy="32" r="0.5" fill="white" fill-opacity="0.2" />
+    </pattern>
+  </defs>
+  
+  <!-- Background rectangle using the pattern -->
+  <rect width="32" height="32" fill="url(#grid)" />
+</svg>

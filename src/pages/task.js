@@ -37,27 +37,6 @@ const EarnTasks = () => {
           reward: 150,
           description: "Prove your skills in competitive play",
           },
-          {
-            id: "complete_tutorial",
-            title: "Complete Tutorial",
-            icon: ShieldCheck,
-            reward: 50,
-            description: "Learn game basics and earn rewards",
-          },
-          {
-            id: "reach_level_5",
-            title: "Reach Level 5",
-            icon: Target,
-            reward: 100,
-            description: "Progress through game levels",
-          },
-          {
-            id: "win_3_matches",
-            title: "Win 3 Matches",
-            icon: Trophy,
-            reward: 150,
-            description: "Prove your skills in competitive play",
-          },
       ],
     },
     {

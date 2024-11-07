@@ -68,6 +68,17 @@ const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
   />
 ));
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
+const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={clsx(
+      "text-sm text-gray-500", // Customize with desired styles
+      className
+    )}
+    {...props}
+  />
+));
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
   Dialog,
@@ -76,4 +87,5 @@ export {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogDescription,
 };
