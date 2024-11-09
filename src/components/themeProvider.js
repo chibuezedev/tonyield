@@ -1,19 +1,124 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { motion } from "framer-motion";
+import Particles from "react-tsparticles";
+import { loadSlim } from "tsparticles-slim";
 
 const ThemeProvider = ({ children }) => {
+  const particlesInit = useCallback(async (engine) => {
+    await loadSlim(engine);
+  }, []);
+
   return (
-    <motion.div
-      className="min-h-screen bg-gradient-to-b from-violet-900 to-black text-white"
-      initial="hidden"
-      animate="visible"
-      variants={fadeInVariants}
-    >
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cdefs%3E%3Cpattern%20id%3D%22grid%22%20x%3D%220%22%20y%3D%220%22%20width%3D%2232%22%20height%3D%2232%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%221%22%20fill%3D%22white%22%20fill-opacity%3D%220.3%22%20/%3E%3Ccircle%20cx%3D%220%22%20cy%3D%220%22%20r%3D%220.5%22%20fill%3D%22white%22%20fill-opacity%3D%220.2%22%20/%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2232%22%20r%3D%220.5%22%20fill%3D%22white%22%20fill-opacity%3D%220.2%22%20/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%220%22%20r%3D%220.5%22%20fill%3D%22white%22%20fill-opacity%3D%220.2%22%20/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%220.5%22%20fill%3D%22white%22%20fill-opacity%3D%220.2%22%20/%3E%3C/pattern%3E%3C/defs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22url(%23grid)%22%20/%3E%3C/svg%3E') bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-      <motion.div className="relative z-10" variants={fadeInVariants}>
-        {children}
+    <div className="min-h-screen bg-black w-full">
+      {/* Top white space */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeInVariants}
+      />
+
+      {/* Main themed content */}
+      <motion.div
+        className="relative w-full bg-gradient-to-b from-gray-900 to-black text-white shadow-2xl overflow-hidden"
+        initial="hidden"
+        animate="visible"
+        variants={fadeInVariants}
+      >
+        {/* Particles Background */}
+        <Particles
+          className="absolute inset-0"
+          init={particlesInit}
+          options={{
+            fpsLimit: 120,
+            interactivity: {
+              events: {
+                onClick: {
+                  enable: true,
+                  mode: "push",
+                },
+                onHover: {
+                  enable: true,
+                  mode: "repulse",
+                },
+                resize: true,
+              },
+              modes: {
+                push: {
+                  quantity: 4,
+                },
+                repulse: {
+                  distance: 100,
+                  duration: 0.4,
+                },
+              },
+            },
+            particles: {
+              color: {
+                value: "#ffffff",
+              },
+              links: {
+                color: "#ffffff",
+                distance: 150,
+                enable: true,
+                opacity: 0.5,
+                width: 1,
+              },
+              move: {
+                direction: "none",
+                enable: true,
+                outModes: {
+                  default: "bounce",
+                },
+                random: true,
+                speed: 2,
+                straight: false,
+              },
+              number: {
+                density: {
+                  enable: true,
+                  area: 800,
+                },
+                value: 80,
+              },
+              opacity: {
+                value: 0.5,
+              },
+              shape: {
+                type: "circle",
+              },
+              size: {
+                value: { min: 1, max: 5 },
+              },
+            },
+            detectRetina: true,
+          }}
+        />
+
+        {/* Gradient overlays for added depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent" />
+
+        {/* Content container */}
+        <motion.div
+          className="relative z-10 min-h-[400px] p-8"
+          variants={fadeInVariants}
+        >
+          {/* Glassmorphic decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 filter blur-3xl -translate-y-32 translate-x-32" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 filter blur-3xl translate-y-32 -translate-x-32" />
+
+          {/* Main content */}
+          <div className="relative z-20">{children}</div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+
+      {/* Bottom white space */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeInVariants}
+      />
+    </div>
   );
 };
 

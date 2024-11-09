@@ -4,7 +4,7 @@ import FriendsInvite from "../pages/invite";
 import EarnTasks from "../pages/task";
 import Leaderboard from "../pages/leaderboard";
 import HomePage from "./home";
-// import StakingPools from "../pages/staking";
+import StakingPools from "../pages/staking";
 
 
 const BottomNavigation = () => {
@@ -27,7 +27,7 @@ const BottomNavigation = () => {
       icon: BuildingIcon,
       name: "stake",
       label: "Farming/Pool",
-      content: <EarnTasks />,
+      content: <StakingPools />,
     },
     {
       icon: Trophy,

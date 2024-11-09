@@ -39,12 +39,12 @@ const Home = () => {
           description: `${newReward} tokens are ready to be claimed!`,
           duration: 5000,
         });
-      }, 180000); // 3 minutes
+      }, 1800000); // 180000 == 3 minutes
     };
 
     startMiningTimer();
     return () => clearTimeout(miningTimer);
-  }, [showModal]); // Restart timer when modal is closed
+  }, [addToast, showModal]); // Restart timer when modal is closed
 
   useEffect(() => {
     if (experience >= 1000) {
@@ -56,7 +56,7 @@ const Home = () => {
         duration: 5000,
       });
     }
-  }, [experience, level]);
+  }, [addToast, experience, level]);
 
   useEffect(() => {
     let lastX = 0;
@@ -202,9 +202,9 @@ const Home = () => {
         >
           <Button
             variant="ghost"
-            size="md"
+            size="lg"
             onClick={handleJoinCommunity}
-            className="w-full flex items-center justify-center gap-2"
+            className="w-full flex items-center justify-center gap-2 bg-white/10"
           >
             <Users className="w-5 h-5" />
             Join Community
@@ -212,8 +212,8 @@ const Home = () => {
 
           {/* Check Rewards Button */}
           <Button
-            variant="ghost"
-            size="md"
+            variant="secondary"
+            size="lg"
             onClick={handleCheckRewards}
             className="w-full flex items-center justify-center gap-2"
           >

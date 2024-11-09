@@ -1,271 +1,192 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy,
   CheckCircle,
   Users,
-  Share2,
-  Link as LinkIcon,
+  MessageCircle,
+  QrCode,
 } from "lucide-react";
 
-const FriendsInvite = () => {
+const TelegramTaskShare = () => {
   const [isCopied, setIsCopied] = useState(false);
-  const inviteLink = "https://tonyield.com/invite/TYFE54DVCV";
+  const [showQR, setShowQR] = useState(false);
+  const inviteLink = "https://t.me/taskmanager/invite/TM54DVCV";
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
       setIsCopied(true);
-
-      // Reset copied state after 2 seconds
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 10000);
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy: ", err);
-      alert("Failed to copy invite link");
     }
   };
 
   const shareOptions = [
     {
-      icon: Users,
-      name: "Contacts",
-      color: "text-green-500",
-      action: () => {
-        // Placeholder for contacts sharing
-        alert("Share via Contacts");
-      },
-    },
-    {
-      icon: Share2,
-      name: "Social Media",
+      icon: MessageCircle,
+      name: "Send Message",
       color: "text-blue-500",
-      action: () => {
-        // Placeholder for social media sharing
-        alert("Share on Social Media");
-      },
+      action: () => alert("Send via Telegram Message"),
     },
     {
-      icon: LinkIcon,
-      name: "Copy Link",
+      icon: Users,
+      name: "Share to Group",
+      color: "text-green-500",
+      action: () => alert("Share to Telegram Group"),
+    },
+    {
+      icon: QrCode,
+      name: "Show QR",
       color: "text-purple-500",
-      action: handleCopyLink,
+      action: () => setShowQR(!showQR),
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Invite Friends
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="min-h-screen bg-gradient-to-b from-blue-50 to-white"
+    >
+      {/* Header */}
+      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4">
+        <div className="flex items-center max-w-lg mx-auto">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            className="p-2 rounded-full hover:bg-gray-100"
+          >
+            {/* <ArrowLeft size={24} className="text-gray-700" /> */}
+          </motion.button>
+          <h1 className="text-xl font-semibold text-gray-800 ml-3">
+            Invite and Earn
           </h1>
-          <p className="text-gray-600">
-            Earn rewards by inviting your friends to join!
-          </p>
         </div>
+      </div>
 
-        {/* Invite Link Section */}
-        <div className="bg-white shadow-md p-6 mb-6">
+      <div className="max-w-lg mx-auto p-4 space-y-6">
+        {/* Invite Link Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
+        >
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium text-gray-600">
-              Your Unique Invite Link
+              Share via Link
             </span>
-            <div
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCopyLink}
               className={`
-                flex items-center space-x-2 
-                px-3 py-1 rounded-full 
+                flex items-center space-x-2 px-3 py-1.5 rounded-full
                 ${
                   isCopied
                     ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-700"
+                    : "bg-blue-100 text-blue-700"
                 }
-                cursor-pointer hover:bg-gray-200 transition-colors
+                transition-colors duration-200
               `}
-              onClick={handleCopyLink}
             >
-              {isCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
+              <motion.div
+                initial={false}
+                animate={{ scale: isCopied ? [1, 1.2, 1] : 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                {isCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
+              </motion.div>
               <span className="text-xs font-semibold">
-                {isCopied ? "Copied!" : "Copy"}
+                {isCopied ? "Copied!" : "Copy Link"}
               </span>
-            </div>
+            </motion.button>
           </div>
 
-          <div className="bg-gray-100 rounded-md p-3 flex items-center justify-between">
+          <div className="bg-gray-50 rounded-xl p-3.5 flex items-center justify-between">
             <span className="text-sm text-gray-700 truncate mr-2">
               {inviteLink}
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Share Options */}
-        <div className="bg-white shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Share Invite
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
+        >
+          <h2 className="text-base font-semibold text-gray-800 mb-4">
+            Share Options
           </h2>
 
-          <div className="grid grid-cols-3 gap-4">
-            {shareOptions.map((option) => (
-              <button
+          <div className="grid grid-cols-3 gap-3">
+            {shareOptions.map((option, index) => (
+              <motion.button
                 key={option.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * (index + 1) }}
+                whileTap={{ scale: 0.95 }}
                 onClick={option.action}
                 className="
                   flex flex-col items-center justify-center
-                  p-4 rounded-lg
+                  p-4 rounded-xl bg-gray-50
                   hover:bg-gray-100 transition-colors
                   focus:outline-none focus:ring-2 focus:ring-blue-300
                 "
               >
-                <option.icon className={`w-8 h-8 mb-2 ${option.color}`} />
-                <span className="text-xs text-gray-700">{option.name}</span>
-              </button>
+                <option.icon className={`w-6 h-6 mb-2 ${option.color}`} />
+                <span className="text-xs text-gray-700 text-center">
+                  {option.name}
+                </span>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Rewards Section */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            You'll earn{" "}
-            <span className="font-bold text-green-600">50 coins</span> for each
-            friend who joins!
+        {/* QR Code Section */}
+        <AnimatePresence>
+          {showQR && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
+            >
+              <div className="text-center">
+                <h3 className="text-base font-semibold text-gray-800 mb-4">
+                  QR Code
+                </h3>
+                <div className="w-48 h-48 mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
+                  <span className="text-sm text-gray-500">
+                    TonYield
+                  </span>
+                </div>
+                <p className="mt-4 text-sm text-gray-600">
+                  Scan to join the task
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Stats Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-center bg-blue-50 rounded-2xl p-4"
+        >
+          <p className="text-sm text-blue-800">
+            <span className="font-semibold">12 people</span> have joined via
+            your invites
           </p>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-export default FriendsInvite;
-
-// import React, { useState } from "react";
-// import {
-//   Copy,
-//   CheckCircle,
-//   Users,
-//   Share2,
-//   Link as LinkIcon,
-// } from "lucide-react";
-
-// const FriendsInvite = () => {
-//   const [isCopied, setIsCopied] = useState(false);
-//   const inviteLink = "https://yourapp.com/invite/ffsfsdf";
-
-//   const handleCopyLink = async () => {
-//     try {
-//       await navigator.clipboard.writeText(inviteLink);
-//       setIsCopied(true);
-
-//       setTimeout(() => {
-//         setIsCopied(false);
-//       }, 2000);
-//     } catch (err) {
-//       console.error("Failed to copy: ", err);
-//       alert("Failed to copy invite link");
-//     }
-//   };
-
-//   const shareOptions = [
-//     {
-//       icon: Users,
-//       name: "Contacts",
-//       action: () => {
-//         alert("Share via Contacts");
-//       },
-//     },
-//     {
-//       icon: Share2,
-//       name: "Social Media",
-//       action: () => {
-//         alert("Share on Social Media");
-//       },
-//     },
-//     {
-//       icon: LinkIcon,
-//       name: "Copy Link",
-//       action: handleCopyLink,
-//     },
-//   ];
-
-//   return (
-//     <div className="min-h-screen bg-white p-6">
-//       <div className="max-w-md mx-auto">
-//         {/* Header */}
-//         <div className="text-center mb-8">
-//           <h1 className="text-3xl font-bold text-black mb-4">INVITE FRIENDS</h1>
-//           <p className="text-lg text-black">SHARE AND EARN REWARDS</p>
-//         </div>
-
-//         {/* Invite Link Section */}
-//         <div className="border-2 border-black p-6 mb-6">
-//           <div className="flex items-center justify-between mb-4">
-//             <span className="font-bold text-black">
-//               Your Unique Invite Link
-//             </span>
-//             <button
-//               className={`
-//                 flex items-center space-x-2
-//                 px-4 py-2
-//                 border-2 border-black
-//                 font-bold
-//                 transition-colors
-//                 ${
-//                   isCopied
-//                     ? "bg-black text-white"
-//                     : "bg-white text-black hover:bg-gray-100"
-//                 }
-//               `}
-//               onClick={handleCopyLink}
-//             >
-//               {isCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
-//               <span className="ml-2">
-//                 {isCopied ? "COPIED!" : "COPY"}
-//               </span>
-//             </button>
-//           </div>
-
-//           <div className="border-2 border-black p-3">
-//             <span className="text-black font-medium">
-//               {inviteLink}
-//             </span>
-//           </div>
-//         </div>
-
-//         {/* Share Options */}
-//         <div className="border-2 border-black p-6">
-//           <h2 className="text-xl font-bold text-black mb-6">
-//             SHARE INVITE
-//           </h2>
-
-//           <div className="grid grid-cols-3 gap-4">
-//             {shareOptions.map((option) => (
-//               <button
-//                 key={option.name}
-//                 onClick={option.action}
-//                 className="
-//                   flex flex-col items-center justify-center
-//                   p-4 border-2 border-black
-//                   hover:bg-gray-100 transition-colors
-//                   focus:outline-none
-//                 "
-//               >
-//                 <option.icon className="w-8 h-8 mb-2 text-black" />
-//                 <span className="font-bold text-black">{option.name}</span>
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Rewards Section */}
-//         <div className="mt-8 text-center border-2 border-black p-4">
-//           <p className="text-black font-bold text-lg">
-//             EARN <span className="text-black">50 COINS</span> FOR EACH FRIEND WHO JOINS!
-//           </p>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default FriendsInvite;
+export default TelegramTaskShare;

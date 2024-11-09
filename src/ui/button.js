@@ -9,7 +9,7 @@ const Button = ({
   variant = "primary",
   size = "md",
   disabled = false,
-  className = "", // Add className prop
+  className = "",
 }) => {
   const baseStyles =
     "rounded-md font-semibold transition duration-300 ease-in-out focus:outline-none";
@@ -41,7 +41,7 @@ const Button = ({
         {
           "opacity-50 cursor-not-allowed": disabled,
         },
-        className // Apply custom classes last to allow overrides
+        className
       )}
     >
       {children}

@@ -1,56 +1,116 @@
 import React, { useState, useEffect } from "react";
-import TonConnect from "@tonconnect/sdk";
-
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Wallet,
+  // Wallet,
   CoinsIcon,
   Clock,
   ArrowUpRight,
-  ChevronDown,
-  Info,
-  X,
-  AlertCircle,
+  ArrowDownRight,
+  // ChevronDown,
+  // Info,
+  // AlertCircle,
+  Shield,
+  Check,
+  Users,
+  TrendingUp,
+  Bell,
+  Settings,
 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  // DialogDescription,
 } from "../ui/dialog";
-import { Alert, AlertDescription } from "../ui/alert";
+import { useSpring, animated } from "react-spring";
 
-// TON Connect configuration
-const tonConnectOptions = {
-  manifestUrl: "https://res.cloudinary.com/vendstore/raw/upload/v1730815296/tonconnect-manifest_dnkk4y.json",
-  buttonRootId: "ton-connect-button",
+// Initialize Telegram WebApp with fallback
+const initTelegramWebApp = () => {
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+    
+    // Set theme variables
+    document.documentElement.style.setProperty(
+      "--tg-theme-bg-color",
+      tg.backgroundColor || "#ffffff"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-text-color",
+      tg.textColor || "#000000"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-color",
+      tg.buttonColor || "#3390ec"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-text-color",
+      tg.buttonTextColor || "#ffffff"
+    );
+    
+    return tg;
+  }
+  
+  // Fallback object for development/testing
+  return {
+    ready: () => {},
+    expand: () => {},
+    sendData: async () => ({ success: true }),
+    showAlert: (msg) => alert(msg),
+    showConfirm: (msg) => window.confirm(msg),
+    backgroundColor: "#ffffff",
+    textColor: "#000000",
+    buttonColor: "#3390ec",
+    buttonTextColor: "#ffffff"
+  };
+};
+
+
+// Animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
 };
 
 const StakingPool = () => {
+  const [tg] = useState(initTelegramWebApp());
+
+  useEffect(() => {
+    tg.ready();
+    tg.expand();
+
+    // Set Telegram theme variables
+    document.documentElement.style.setProperty(
+      "--tg-theme-bg-color",
+      tg.backgroundColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-text-color",
+      tg.textColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-color",
+      tg.buttonColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-text-color",
+      tg.buttonTextColor
+    );
+  }, []);
+
   // State management
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
   const [stakeAmount, setStakeAmount] = useState("");
   const [stakingDays, setStakingDays] = useState(7);
-  const [isStakingModalOpen, setIsStakingModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
-
-  // Fetch wallet balance (mock function, replace with actual API call if available)
-const fetchWalletBalance = async (address) => {
-  try {
-    // Simulate an API call to fetch balance
-    // Replace with actual logic if needed, e.g., an API call to TON blockchain or your backend
-    const response = await fetch(`https://your-api.com/wallets/${address}/balance`);
-    const data = await response.json();
-    return data.balance; // Assuming the API returns balance in this field
-  } catch (error) {
-    console.error("Failed to fetch wallet balance:", error);
-    return 0; // Default to 0 if there’s an error
-  }
-};
-
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Pool information with state
   const [poolInfo, setPoolInfo] = useState({
@@ -62,348 +122,647 @@ const fetchWalletBalance = async (address) => {
     estimatedRewards: 0,
   });
 
-  // Calculate APR based on staking days
+  // Animation for numbers
+  const animatedTotalStaked = useSpring({
+    number: poolInfo.totalStaked,
+    from: { number: 0 },
+    config: { duration: 1000 },
+  });
+
+  // Calculate APR based on staking days with animation
   const calculateAPR = (days) => {
-    // Example APR calculation - replace with your actual formula
     const baseAPR = 12.5;
     const modifier = days / 30;
     return baseAPR * (1 + modifier * 0.1);
   };
 
-  // Calculate estimated rewards
-  const calculateEstimatedRewards = (amount, days) => {
-    const apr = calculateAPR(days);
-    return (amount * apr * days) / (365 * 100);
+  const animatedAPR = useSpring({
+    number: calculateAPR(stakingDays),
+    from: { number: 0 },
+    config: { duration: 500 },
+  });
+
+  // TON Connect integration
+  const connectWallet = async () => {
+    try {
+      // Use Telegram's built-in TON wallet connection
+      const result = await tg.sendData({
+        method: "connect_wallet",
+      });
+
+      if (result) {
+        setIsConnected(true);
+        setWalletAddress(result.address);
+        await fetchWalletBalance(result.address);
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      setError("Could not connect to TON wallet");
+    }
   };
 
-  // Connect wallet handler
-  const handleConnect = async () => {
-    setIsLoading(true);
-    setError("");
-  
+  // Fetch wallet balance using TON API
+  const fetchWalletBalance = async (address) => {
     try {
-      const TonConnectOR = window.TonConnect || TonConnect;
-      if (!TonConnectOR) {
-        throw new Error("TonConnect is not loaded. Please check your script import.");
-      }
-  
-      const connector = new TonConnectOR(tonConnectOptions);
-  
-      const walletConnectionSource = await connector.connect();
-  
-      if (walletConnectionSource) {
-        const address = walletConnectionSource.address;
-        setWalletAddress(address);
-        setIsConnected(true);
-  
-        const balance = await fetchWalletBalance(address);
+      const response = await fetch(
+        `https://toncenter.com/api/v2/getAddressBalance?address=${address}`
+      );
+      const data = await response.json();
+
+      if (data.ok) {
+        const balance = parseInt(data.result) / 1e9; // Convert from nanotons to tons
         setPoolInfo((prev) => ({
           ...prev,
           walletBalance: balance,
         }));
       }
     } catch (error) {
-      console.error("Connection failed:", error);
-      setError("Failed to connect wallet. Please try again.");
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to fetch balance:", error);
+      setError("Could not fetch wallet balance");
     }
   };
-  
 
-  // Staking handler
-  const handleStake = async () => {
-    if (!stakeAmount || parseFloat(stakeAmount) < poolInfo.minStake) {
-      setError(`Minimum stake amount is ${poolInfo.minStake} TON`);
-      return;
-    }
+  // Calculate estimated rewards with animation
+  const calculateEstimatedRewards = (amount, days) => {
+    const apr = calculateAPR(days);
+    return (amount * apr * days) / (365 * 100);
+  };
 
-    setIsLoading(true);
-    setError("");
+  const animatedEstimatedRewards = useSpring({
+    number: poolInfo.estimatedRewards,
+    from: { number: 0 },
+    config: { duration: 500 },
+  });
+  // Continuing from previous part...
 
-    try {
-      // Create staking transaction
-      const transaction = {
-        to: "STAKING_CONTRACT_ADDRESS",
-        value: stakeAmount,
-        data: {
-          stakingPeriod: stakingDays,
-          method: "stake",
-        },
-      };
+  // Card component with animation
+  const StakingCard = ({ children, className = "" }) => (
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={`bg-white rounded-xl shadow-sm p-4 ${className}`}
+      style={{
+        backgroundColor: "var(--tg-theme-bg-color)",
+        color: "var(--tg-theme-text-color)",
+      }}
+    >
+      {children}
+    </motion.div>
+  );
 
-      // Send transaction using TON Connect
-      const TonConnect = window.TonConnect;
-      const connector = new TonConnect(tonConnectOptions);
+  // Animated stat display
+  const StatDisplay = ({ label, value, icon: Icon, suffix = "" }) => (
+    <motion.div
+      initial="initial"
+      animate="animate"
+      variants={fadeInUp}
+      className="flex flex-col space-y-1"
+    >
+      <div className="text-sm opacity-60 flex items-center space-x-1">
+        <Icon className="w-4 h-4" />
+        <span>{label}</span>
+      </div>
+      <animated.div className="text-xl font-bold">
+        {typeof value === "number" ? value.toLocaleString() : value}
+        {suffix}
+      </animated.div>
+    </motion.div>
+  );
 
-      const result = await connector.sendTransaction(transaction);
+  // Custom input with animation
+  const AnimatedInput = ({
+    value,
+    onChange,
+    placeholder,
+    type = "text",
+    min,
+    max,
+  }) => (
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="relative"
+    >
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        className="w-full px-4 py-3 rounded-lg bg-opacity-50 border focus:outline-none focus:ring-2 focus:ring-blue-500"
+        style={{
+          backgroundColor: "var(--tg-theme-bg-color)",
+          color: "var(--tg-theme-text-color)",
+          borderColor: "var(--tg-theme-button-color)",
+        }}
+      />
+    </motion.div>
+  );
 
-      if (result.success) {
-        // Update pool information
-        setPoolInfo((prev) => ({
-          ...prev,
-          yourStake: prev.yourStake + parseFloat(stakeAmount),
-          totalStaked: prev.totalStaked + parseFloat(stakeAmount),
-          walletBalance: prev.walletBalance - parseFloat(stakeAmount),
-        }));
+  // Staking form section
+  const StakingForm = () => {
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setIsLoading(true);
+      try {
+        // Prepare transaction data
+        const transactionData = {
+          to: poolInfo.stakingContract,
+          value: stakeAmount,
+          data: {
+            op: "stake",
+            days: stakingDays,
+          },
+        };
 
-        // Clear input
-        setStakeAmount("");
+        // Send transaction through Telegram's TON wallet
+        const result = await tg.sendData({
+          method: "ton_sendTransaction",
+          params: transactionData,
+        });
+
+        if (result.success) {
+          setShowSuccessAnimation(true);
+          setTimeout(() => setShowSuccessAnimation(false), 2000);
+
+          // Update pool info
+          setPoolInfo((prev) => ({
+            ...prev,
+            yourStake: prev.yourStake + parseFloat(stakeAmount),
+            totalStaked: prev.totalStaked + parseFloat(stakeAmount),
+          }));
+        }
+      } catch (error) {
+        setError("Transaction failed. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Staking failed:", error);
-      setError("Failed to stake TON. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4">
+          {/* Amount Input */}
+          <div>
+            <label className="text-sm opacity-60 mb-1 block">
+              Amount to Stake
+            </label>
+            <div className="relative">
+              <AnimatedInput
+                type="number"
+                value={stakeAmount}
+                onChange={(e) => setStakeAmount(e.target.value)}
+                placeholder="Enter TON amount"
+                min={poolInfo.minStake}
+              />
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() =>
+                  setStakeAmount(poolInfo.walletBalance.toString())
+                }
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded-md text-sm"
+                style={{
+                  backgroundColor: "var(--tg-theme-button-color)",
+                  color: "var(--tg-theme-button-text-color)",
+                }}
+              >
+                MAX
+              </motion.button>
+            </div>
+            <div className="text-sm mt-1 opacity-60">
+              Balance: {poolInfo.walletBalance.toFixed(2)} TON
+            </div>
+          </div>
+
+          {/* Duration Selector */}
+          <div>
+            <label className="text-sm opacity-60 mb-1 block">
+              Staking Duration
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[7, 30, 90].map((days) => (
+                <motion.button
+                  key={days}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setStakingDays(days)}
+                  className={`py-2 rounded-lg ${
+                    stakingDays === days ? "ring-2" : ""
+                  }`}
+                  style={{
+                    backgroundColor:
+                      stakingDays === days
+                        ? "var(--tg-theme-button-color)"
+                        : "var(--tg-theme-bg-color)",
+                    color:
+                      stakingDays === days
+                        ? "var(--tg-theme-button-text-color)"
+                        : "var(--tg-theme-text-color)",
+                  }}
+                >
+                  {days} days
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats Display */}
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <StatDisplay
+              label="Lock Period"
+              value={stakingDays}
+              icon={Clock}
+              suffix=" days"
+            />
+            <StatDisplay
+              label="Est. Rewards"
+              value={poolInfo.estimatedRewards.toFixed(2)}
+              icon={CoinsIcon}
+              suffix=" TON"
+            />
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          type="submit"
+          disabled={
+            isLoading ||
+            !stakeAmount ||
+            parseFloat(stakeAmount) < poolInfo.minStake
+          }
+          className="w-full py-4 rounded-xl font-medium relative overflow-hidden"
+          style={{
+            backgroundColor: "var(--tg-theme-button-color)",
+            color: "var(--tg-theme-button-text-color)",
+          }}
+        >
+          <AnimatePresence>
+            {isLoading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              </motion.div>
+            ) : (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center justify-center space-x-2"
+              >
+                <span>Stake TON</span>
+                <ArrowUpRight className="w-5 h-5" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+      </form>
+    );
   };
 
-  // Update estimated rewards when stake amount or days change
-  useEffect(() => {
-    if (stakeAmount && stakingDays) {
-      const estimated = calculateEstimatedRewards(
-        parseFloat(stakeAmount),
-        stakingDays
-      );
-      setPoolInfo((prev) => ({
-        ...prev,
-        estimatedRewards: estimated,
-      }));
-    }
-  }, [stakeAmount, stakingDays]);
-
-  // Staking guide modal content
-  const StakingGuide = () => {
-    const steps = [
+  // Success Animation Component
+  const SuccessAnimation = () => (
+    <motion.div
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+    >
+      <div className="bg-white rounded-2xl p-6 flex flex-col items-center space-y-4">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 360, 360],
+          }}
+          transition={{ duration: 0.5 }}
+          className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center"
+        >
+          <Check className="w-8 h-8 text-white" />
+        </motion.div>
+        <h3 className="text-xl font-bold">Staking Successful!</h3>
+        <p className="text-gray-500 text-center">
+          Your TON has been successfully staked
+        </p>
+      </div>
+    </motion.div>
+  );
+  // Pool Statistics Component with animations
+  const PoolStatistics = ({ poolInfo }) => {
+    const stats = [
       {
-        title: "Connect Your Wallet",
-        description:
-          "Start by connecting your TON wallet to access staking features.",
+        label: "Total Value Locked",
+        value: poolInfo.totalStaked,
+        format: (val) => `${val.toLocaleString()} TON`,
+        icon: CoinsIcon,
+        trend: "+5.2%",
+        trendUp: true,
       },
       {
-        title: "Choose Staking Amount",
-        description: `Enter the amount you want to stake (minimum ${poolInfo.minStake} TON).`,
-      },
-      {
-        title: "Select Staking Period",
-        description:
-          "Choose how long you want to stake your TON. Longer periods may offer better rewards.",
-      },
-      {
-        title: "Confirm & Stake",
-        description: "Review the details and confirm your staking transaction.",
+        label: "Active Stakers",
+        value: poolInfo.activeStakers || 1250,
+        format: (val) => val.toLocaleString(),
+        icon: Users,
+        trend: "+12.3%",
+        trendUp: true,
       },
     ];
 
     return (
-      <div className="space-y-6">
-        {steps.map((step, index) => (
-          <div
-            key={index}
-            className={`p-4 rounded-lg ${
-              currentStep === index + 1 ? "bg-black text-white" : "bg-gray-50"
-            }`}
-          >
-            <h3 className="font-bold mb-2">
-              Step {index + 1}: {step.title}
-            </h3>
-            <p className="text-sm">{step.description}</p>
-          </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-2 gap-4"
+      >
+        {stats.map((stat, index) => (
+          <StakingCard key={index} className="relative overflow-hidden">
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1 }}
+              className="flex flex-col space-y-2"
+            >
+              <div className="flex items-center space-x-2 text-sm opacity-60">
+                <stat.icon className="w-4 h-4" />
+                <span>{stat.label}</span>
+              </div>
+              <div className="text-xl font-bold">{stat.format(stat.value)}</div>
+              <div
+                className={`text-sm ${
+                  stat.trendUp ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {stat.trend}
+              </div>
+            </motion.div>
+          </StakingCard>
         ))}
-
-        <div className="flex justify-between">
-          <button
-            onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-            disabled={currentStep === 1}
-            className="px-4 py-2 bg-gray-100 rounded-lg disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => {
-              if (currentStep === steps.length) {
-                setIsStakingModalOpen(false);
-                setCurrentStep(1);
-              } else {
-                setCurrentStep((prev) => prev + 1);
-              }
-            }}
-            className="px-4 py-2 bg-black text-white rounded-lg"
-          >
-            {currentStep === steps.length ? "Got it!" : "Next"}
-          </button>
-        </div>
-      </div>
+      </motion.div>
     );
   };
 
-  return (
-    <div className="min-h-screen bg-white text-black p-6">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-4">TON Staking Pool</h1>
-        <p className="text-lg">Stake TON and Earn Rewards</p>
-      </div>
+  // Transaction History Component
+  const TransactionHistory = () => {
+    const [transactions, setTransactions] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+    useEffect(() => {
+      fetchTransactionHistory();
+    }, []);
 
-      {/* Pool Stats */}
-      <div className="mb-8">
-        <div className="border-2 border-black p-6">
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <div className="text-gray-600">Total Staked</div>
-              <div className="text-2xl font-bold">
-                {poolInfo.totalStaked.toLocaleString()} TON
-              </div>
-            </div>
-            <div>
-              <div className="text-gray-600">Current APR</div>
-              <div className="text-2xl font-bold text-green-600">
-                {calculateAPR(stakingDays).toFixed(1)}%
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    const fetchTransactionHistory = async () => {
+      try {
+        // Fetch from TON API
+        const response = await fetch(
+          `https://toncenter.com/api/v2/getTransactions?address=${walletAddress}&limit=10`
+        );
+        const data = await response.json();
 
-      {/* Staking Form */}
-      <div className="border-2 border-black p-6 mb-8">
-        {!isConnected ? (
-          <div className="text-center">
-            <button
-              onClick={handleConnect}
-              disabled={isLoading}
-              className="bg-black text-white px-6 py-3 rounded-lg font-bold flex items-center justify-center w-full space-x-2 disabled:opacity-50"
-            >
-              <Wallet className="w-5 h-5" />
-              <span>{isLoading ? "Connecting..." : "Connect Wallet"}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="text-gray-600">Your Stake</div>
-              <div className="font-bold">{poolInfo.yourStake} TON</div>
-            </div>
+        if (data.ok) {
+          setTransactions(data.result);
+        }
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-            <div className="space-y-2">
-              <label className="text-gray-600">Amount to Stake</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={stakeAmount}
-                  onChange={(e) => setStakeAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="w-full border-2 border-black p-3 rounded-lg"
-                  min={poolInfo.minStake}
-                />
-                <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-sm bg-gray-100 px-2 py-1 rounded"
-                  onClick={() =>
-                    setStakeAmount(poolInfo.walletBalance.toString())
-                  }
-                >
-                  MAX
-                </button>
-              </div>
-              <div className="text-sm text-gray-600">
-                Balance: {poolInfo.walletBalance} TON
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-gray-600">Staking Period (Days)</label>
-              <input
-                type="number"
-                value={stakingDays}
-                onChange={(e) =>
-                  setStakingDays(Math.max(1, parseInt(e.target.value)))
-                }
-                className="w-full border-2 border-black p-3 rounded-lg"
-                min="1"
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mt-6"
+      >
+        <h3 className="text-lg font-bold mb-4">Recent Transactions</h3>
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="flex justify-center py-4">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-6 h-6 border-2 border-t-transparent rounded-full"
               />
             </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5" />
-                  <span>Lock Period</span>
-                </div>
-                <div className="font-bold">{stakingDays} days</div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <CoinsIcon className="w-5 h-5" />
-                  <span>Estimated Rewards</span>
-                </div>
-                <div className="font-bold">
-                  {poolInfo.estimatedRewards.toFixed(2)} TON
-                </div>
-              </div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-4 opacity-60">
+              No transactions yet
             </div>
+          ) : (
+            transactions.map((tx, index) => (
+              <motion.div
+                key={tx.hash}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center justify-between p-3 rounded-lg bg-opacity-5"
+                style={{
+                  backgroundColor: "var(--tg-theme-bg-color)",
+                  borderBottom: "1px solid var(--tg-theme-hint-color)",
+                }}
+              >
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      tx.type === "stake" ? "bg-green-500" : "bg-blue-500"
+                    }`}
+                  >
+                    {tx.type === "stake" ? (
+                      <ArrowUpRight />
+                    ) : (
+                      <ArrowDownRight />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-medium">
+                      {tx.type === "stake" ? "Staked" : "Reward"}
+                    </div>
+                    <div className="text-sm opacity-60">
+                      {new Date(tx.timestamp * 1000).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-medium">{tx.amount.toFixed(2)} TON</div>
+                  <div className="text-sm opacity-60">
+                    {tx.status === "confirmed" ? "Confirmed" : "Pending"}
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
-            <button
-              onClick={handleStake}
-              disabled={
-                isLoading ||
-                !stakeAmount ||
-                parseFloat(stakeAmount) < poolInfo.minStake
-              }
-              className={`w-full py-3 rounded-lg font-bold flex items-center justify-center space-x-2
-                ${
-                  isLoading ||
-                  !stakeAmount ||
-                  parseFloat(stakeAmount) < poolInfo.minStake
-                    ? "bg-gray-200 text-gray-500"
-                    : "bg-black text-white"
-                }`}
-            >
-              <span>{isLoading ? "Staking..." : "Stake TON"}</span>
-              <ArrowUpRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-      </div>
+  // Rewards Tracking Component
+  const RewardsTracker = () => {
+    const [rewardsData, setRewardsData] = useState({
+      total: 0,
+      pending: 0,
+      history: [],
+    });
 
-      {/* Info Section */}
-      <div className="space-y-4">
-        <button
-          onClick={() => setIsStakingModalOpen(true)}
-          className="w-full flex items-center justify-between border-2 border-black p-4 hover:bg-gray-50"
-        >
-          <div className="flex items-center space-x-2">
-            <Info className="w-5 h-5" />
-            <span>How Staking Works</span>
-          </div>
-          <ChevronDown className="w-5 h-5" />
-        </button>
-      </div>
+    const rewardsStats = [
+      {
+        label: "Total Earned",
+        value: rewardsData.total,
+        icon: TrendingUp,
+      },
+      {
+        label: "Pending Rewards",
+        value: rewardsData.pending,
+        icon: Clock,
+      },
+    ];
 
-      {/* Staking Guide Modal */}
-      <Dialog open={isStakingModalOpen} onOpenChange={setIsStakingModalOpen}>
-        <DialogContent>
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-6"
+      >
+        <h3 className="text-lg font-bold mb-4">Your Rewards</h3>
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {rewardsStats.map((stat, index) => (
+            <StakingCard key={index}>
+              <div className="flex items-center space-x-2 mb-2">
+                <stat.icon className="w-4 h-4 opacity-60" />
+                <span className="text-sm opacity-60">{stat.label}</span>
+              </div>
+              <div className="text-xl font-bold">
+                {stat.value.toFixed(2)} TON
+              </div>
+            </StakingCard>
+          ))}
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Settings Modal
+  const SettingsModal = ({ isOpen, onClose }) => {
+    const settings = [
+      {
+        label: "Notification Preferences",
+        icon: Bell,
+        onClick: () => {
+          // Handle notification settings
+          tg.showAlert("Notification settings updated");
+        },
+      },
+      {
+        label: "Transaction Confirmations",
+        icon: Shield,
+        onClick: () => {
+          // Handle security settings
+          tg.showConfirm("Enable additional security?");
+        },
+      },
+    ];
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>How TON Staking Works</DialogTitle>
-            <DialogDescription>
-              Learn how to stake your TON and earn rewards
-            </DialogDescription>
+            <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          <StakingGuide />
+          <div className="space-y-4">
+            {settings.map((setting, index) => (
+              <motion.button
+                key={index}
+                whileTap={{ scale: 0.98 }}
+                onClick={setting.onClick}
+                className="w-full flex items-center space-x-3 p-4 rounded-lg"
+                style={{
+                  backgroundColor: "var(--tg-theme-bg-color)",
+                  color: "var(--tg-theme-text-color)",
+                }}
+              >
+                <setting.icon className="w-5 h-5" />
+                <span>{setting.label}</span>
+              </motion.button>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
+    );
+  };
 
-      <div className="mt-6 text-center text-gray-600">
-        <p>APR updates based on staking period</p>
-      </div>
+  // Add this component definition before the main return statement
+  const ConnectWallet = ({ onConnect }) => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center py-8"
+      >
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={onConnect}
+          className="px-6 py-3 rounded-xl font-medium"
+          style={{
+            backgroundColor: "var(--tg-theme-button-color)",
+            color: "var(--tg-theme-button-text-color)",
+          }}
+        >
+          Connect TON Wallet
+        </motion.button>
+      </motion.div>
+    );
+  };
+
+  // Main return statement updates
+  return (
+    <div className="min-h-screen pb-safe-area">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="max-w-lg mx-auto p-4 space-y-6"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">TON Staking</h1>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: "var(--tg-theme-bg-color)",
+            }}
+          >
+            <Settings className="w-6 h-6" />
+          </motion.button>
+        </div>
+
+        <PoolStatistics poolInfo={poolInfo} />
+
+        {isConnected ? (
+          <>
+            <StakingForm />
+            <RewardsTracker />
+            <TransactionHistory />
+          </>
+        ) : (
+          <ConnectWallet onConnect={connectWallet} />
+        )}
+
+        {/* Modals */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+
+        {/* Success Animation */}
+        <AnimatePresence>
+          {showSuccessAnimation && <SuccessAnimation />}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 };
