@@ -6,7 +6,6 @@ import Leaderboard from "../pages/leaderboard";
 import HomePage from "./home";
 import StakingPools from "../pages/staking";
 
-
 const BottomNavigation = () => {
   const [activeTab, setActiveTab] = useState("home");
 

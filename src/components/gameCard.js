@@ -23,7 +23,7 @@ const MatrixGameCard = ({
   const [combo, setCombo] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [rewardAnimations, setRewardAnimations] = useState([]);
-  const [gridSize, setGridSize] = useState(5);
+  const [gridSize, setGridSize] = useState(4);
 
   // Initialize dots with different patterns based on game mode
   const initializeDots = useCallback(() => {
