@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, Sparkles, Binary, Zap } from "lucide-react";
+import { Star } from "lucide-react";
 
 const GAME_MODES = {
   CLASSIC: "classic",
@@ -23,7 +23,7 @@ const MatrixGameCard = ({
   const [combo, setCombo] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [rewardAnimations, setRewardAnimations] = useState([]);
-  const [gridSize, setGridSize] = useState(4); // Adjustable grid size
+  const [gridSize, setGridSize] = useState(5);
 
   // Initialize dots with different patterns based on game mode
   const initializeDots = useCallback(() => {
