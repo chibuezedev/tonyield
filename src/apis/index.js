@@ -1,10 +1,9 @@
 import axios from "axios";
 
-const verifyUser = async (initData, user) => {
+const verifyUser = async (initData) => {
   try {
     const response = await axios.post(`http://localhost:3001/api/auth/user`, {
-      initData,
-      user,
+      initData
     });
     return response.data;
   } catch (error) {

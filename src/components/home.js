@@ -41,15 +41,19 @@ const Home = () => {
         script.onload = async () => {
           window.Telegram.WebApp.ready();
 
-          const initDataRaw = window.Telegram.WebApp.initDataUnsafe
-          const initUser = window.Telegram.WebApp.initDataUnsafe.user
-          if (!initDataRaw) {
+          const initDataObj = {
+            query_id: window.Telegram.WebApp.initDataUnsafe.query_id,
+            user: window.Telegram.WebApp.initDataUnsafe.user,
+            auth_date: window.Telegram.WebApp.initDataUnsafe.auth_date,
+            hash: window.Telegram.WebApp.initDataUnsafe.hash
+          };
+          if (!initDataObj) {
             throw new Error("No init data available");
           }
 
           // Verify user
           try {
-            const userData = await verifyUser(initDataRaw, initUser);
+            const userData = await verifyUser(initDataObj);
             setUser(userData);
             addToast({
               title: "Welcome! 👋",
