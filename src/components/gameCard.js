@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star } from "lucide-react";
+import { useToast } from "./toastProvider";
+import { claimRewards } from "../apis";
 
 const GAME_MODES = {
   CLASSIC: "classic",
@@ -24,6 +26,10 @@ const MatrixGameCard = ({
   const [timeLeft, setTimeLeft] = useState(60);
   const [rewardAnimations, setRewardAnimations] = useState([]);
   const [gridSize, setGridSize] = useState(4);
+  const [pendingRewards, setPendingRewards] = useState(0);
+  const [isProcessingReward, setIsProcessingReward] = useState(false);
+
+  const { addToast } = useToast();
 
   // Initialize dots with different patterns based on game mode
   const initializeDots = useCallback(() => {
@@ -151,6 +157,58 @@ const MatrixGameCard = ({
     setScore(0);
     setCombo(0);
     initializeDots();
+  };
+
+  useEffect(() => {
+    const activeDots = dots.filter((dot) => dot.active);
+    if (activeDots.length === 0) {
+      const gameCompletionBonus = calculateGameBonus();
+      setPendingRewards((prev) => prev + gameCompletionBonus);
+      handleGameReward(gameCompletionBonus);
+    }
+  }, [dots]);
+
+  const calculateGameBonus = () => {
+    const modeMultiplier = {
+      [GAME_MODES.CLASSIC]: 1,
+      [GAME_MODES.TIME_ATTACK]: timeLeft > 30 ? 2 : 1.5,
+      [GAME_MODES.CHALLENGE]: 2.5,
+    };
+
+    return Math.floor(score * modeMultiplier[gameMode] * (combo > 5 ? 1.5 : 1));
+  };
+
+  const handleGameReward = async (reward) => {
+    if (isProcessingReward) return;
+
+    setIsProcessingReward(true);
+    try {
+      const initDataObj = {
+        query_id: window.Telegram.WebApp.initDataUnsafe.query_id,
+        user: window.Telegram.WebApp.initDataUnsafe.user,
+        auth_date: window.Telegram.WebApp.initDataUnsafe.auth_date,
+        hash: window.Telegram.WebApp.initDataUnsafe.hash,
+      };
+
+      await claimRewards(level, reward, initDataObj);
+      setPendingRewards(0);
+      addToast({
+        title: "Game Rewards Claimed! 🎮",
+        description: `${reward} tokens earned from your gameplay!`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Failed to process game reward:", error);
+      // Keep the rewards pending for next attempt
+      addToast({
+        title: "Reward Processing Failed",
+        description: "Your rewards are saved and will be claimed later",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsProcessingReward(false);
+    }
   };
 
   return (

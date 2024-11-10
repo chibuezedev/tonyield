@@ -6,7 +6,7 @@ import ThemeProvider, { fadeInVariants } from "./themeProvider";
 import Button from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useToast } from "./toastProvider";
-import { verifyUser } from "../apis";
+import { verifyUser, claimRewards } from "../apis";
 
 const Home = () => {
   const [rotation, setRotation] = useState(0);
@@ -19,6 +19,7 @@ const Home = () => {
   const [isShaking, setIsShaking] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClaimingReward, setIsClaimingReward] = useState(false);
 
   const shakeThreshold = 15;
   const { addToast } = useToast();
@@ -29,12 +30,11 @@ const Home = () => {
     { icon: Gift, label: "Rewards", value: rewards },
   ];
 
-
   useEffect(() => {
     const initTelegram = async () => {
       try {
         const script = document.createElement("script");
-        script.src = "https://telegram.org/js/telegram-web-app.js"
+        script.src = "https://telegram.org/js/telegram-web-app.js";
         script.async = true;
 
         script.onload = async () => {
@@ -44,7 +44,7 @@ const Home = () => {
             query_id: window.Telegram.WebApp.initDataUnsafe.query_id,
             user: window.Telegram.WebApp.initDataUnsafe.user,
             auth_date: window.Telegram.WebApp.initDataUnsafe.auth_date,
-            hash: window.Telegram.WebApp.initDataUnsafe.hash
+            hash: window.Telegram.WebApp.initDataUnsafe.hash,
           };
           if (!initDataObj) {
             throw new Error("No init data available");
@@ -62,12 +62,6 @@ const Home = () => {
             return userData;
           } catch (verifyError) {
             console.error("Error verifying user:", verifyError);
-            addToast({
-              title: "Authentication Error",
-              description: "Failed to verify user with backend",
-              duration: 5000,
-              variant: "destructive",
-            });
           }
         };
 
@@ -97,7 +91,6 @@ const Home = () => {
       }
     };
   }, [addToast]);
-
 
   useEffect(() => {
     let miningTimer;
@@ -224,6 +217,38 @@ const Home = () => {
     );
   }
 
+  const handleClaimReward = async () => {
+    if (!user || isClaimingReward) return;
+
+    setIsClaimingReward(true);
+    try {
+      const initDataObj = {
+        query_id: window.Telegram.WebApp.initDataUnsafe.query_id,
+        user: window.Telegram.WebApp.initDataUnsafe.user,
+        auth_date: window.Telegram.WebApp.initDataUnsafe.auth_date,
+        hash: window.Telegram.WebApp.initDataUnsafe.hash,
+      };
+
+      await claimRewards(level, minedReward, initDataObj);
+      setRewards((prev) => prev + minedReward);
+      setShowModal(false);
+      addToast({
+        title: "Rewards Claimed! 💎",
+        description: `${minedReward} tokens have been added to your balance!`,
+        duration: 3000,
+      });
+    } catch (error) {
+      addToast({
+        title: "Claim Failed",
+        description: "Failed to claim rewards. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsClaimingReward(false);
+    }
+  };
+
   return (
     <ThemeProvider>
       <motion.div
@@ -340,18 +365,11 @@ const Home = () => {
                   </motion.div>
                   <p className="text-gray-400 mb-6">Tokens awaiting claim</p>
                   <Button
-                    onClick={() => {
-                      setRewards((prev) => prev + minedReward);
-                      setShowModal(false);
-                      addToast({
-                        title: "Rewards Claimed! 💎",
-                        description: `${minedReward} tokens have been added to your balance!`,
-                        duration: 3000,
-                      });
-                    }}
+                    onClick={handleClaimReward}
+                    disabled={isClaimingReward}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                   >
-                    Claim Reward
+                    {isClaimingReward ? "Claiming..." : "Claim Reward"}
                   </Button>
                 </motion.div>
               </DialogContent>
