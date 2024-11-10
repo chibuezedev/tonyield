@@ -59,6 +59,7 @@ const Home = () => {
               description: `Successfully authenticated as ${userData.user.username}`,
               duration: 3000,
             });
+            return userData;
           } catch (verifyError) {
             console.error("Error verifying user:", verifyError);
             addToast({
