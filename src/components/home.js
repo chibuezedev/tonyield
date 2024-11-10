@@ -41,14 +41,15 @@ const Home = () => {
         script.onload = async () => {
           window.Telegram.WebApp.ready();
 
-          const initDataRaw = window.Telegram.WebApp.initData;
+          const initDataRaw = window.Telegram.WebApp.initDataUnsafe
+          const initUser = window.Telegram.WebApp.initDataUnsafe.user
           if (!initDataRaw) {
             throw new Error("No init data available");
           }
 
           // Verify user
           try {
-            const userData = await verifyUser(initDataRaw);
+            const userData = await verifyUser(initDataRaw, initUser);
             setUser(userData);
             addToast({
               title: "Welcome! 👋",
