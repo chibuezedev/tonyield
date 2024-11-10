@@ -21,7 +21,7 @@ const Home = () => {
 
   const shakeThreshold = 15;
   const { addToast } = useToast();
-  const initData = window.Telegram.WebApp.initData;
+  
 
   const stats = [
     { icon: Trophy, label: "Level", value: level },
@@ -29,9 +29,78 @@ const Home = () => {
     { icon: Gift, label: "Rewards", value: rewards },
   ];
 
+  // Initialize Telegram WebApp with fallback
+const initTelegramWebApp = () => {
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+    
+    // Set theme variables
+    document.documentElement.style.setProperty(
+      "--tg-theme-bg-color",
+      tg.backgroundColor || "#ffffff"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-text-color",
+      tg.textColor || "#000000"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-color",
+      tg.buttonColor || "#3390ec"
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-text-color",
+      tg.buttonTextColor || "#ffffff"
+    );
+    
+    return tg;
+  }
+  
+  // Fallback object for development/testing
+  return {
+    ready: () => {},
+    expand: () => {},
+    sendData: async () => ({ success: true }),
+    showAlert: (msg) => alert(msg),
+    showConfirm: (msg) => window.confirm(msg),
+    backgroundColor: "#ffffff",
+    textColor: "#000000",
+    buttonColor: "#3390ec",
+    buttonTextColor: "#ffffff"
+  };
+};
+
+  
+const [tg] = useState(initTelegramWebApp());
+
+useEffect(() => {
+  tg.ready();
+  tg.expand();
+
+  // Set Telegram theme variables
+  document.documentElement.style.setProperty(
+    "--tg-theme-bg-color",
+    tg.backgroundColor
+  );
+  document.documentElement.style.setProperty(
+    "--tg-theme-text-color",
+    tg.textColor
+  );
+  document.documentElement.style.setProperty(
+    "--tg-theme-button-color",
+    tg.buttonColor
+  );
+  document.documentElement.style.setProperty(
+    "--tg-theme-button-text-color",
+    tg.buttonTextColor
+  );
+}, []);
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        const initData = tg.initData;
         const telegramUser = await verifyUser(initData);
         console.log(telegramUser)
         setUser(telegramUser);
@@ -42,7 +111,7 @@ const Home = () => {
     };
   
     fetchUser();
-  }, [initData, addToast]);
+  }, [addToast, tg.initData]);
 
   useEffect(() => {
     // Auto-mining reward timer
