@@ -19,7 +19,6 @@ const Home = () => {
   const [isShaking, setIsShaking] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [telegramUser, setTelegramUser] = useState(null);
 
   const shakeThreshold = 15;
   const { addToast } = useToast();
@@ -57,7 +56,7 @@ const Home = () => {
             setUser(userData);
             addToast({
               title: "Welcome! 👋",
-              description: `Successfully authenticated as ${userData.username}`,
+              description: `Successfully authenticated as ${userData.user.username}`,
               duration: 3000,
             });
           } catch (verifyError) {
@@ -237,19 +236,6 @@ const Home = () => {
           className="w-full max-w-md mb-8 relative"
           variants={fadeInVariants}
         >
-          {user ? (
-            <div className="mb-4 text-center">
-              <p className="text-sm text-gray-400">Welcome back</p>
-              <p className="text-lg font-bold">{user.username}</p>
-            </div>
-          ) : (
-            <div className="mb-4 text-center">
-              <p className="text-sm text-red-400">
-                Please authenticate with Telegram
-              </p>
-            </div>
-          )}
-
           <Button
             variant="ghost"
             size="lg"
