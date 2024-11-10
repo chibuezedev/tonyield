@@ -6,7 +6,7 @@ import ThemeProvider, { fadeInVariants } from "./themeProvider";
 import Button from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useToast } from "./toastProvider";
-import { verifyUser } from "../apis"; 
+import { verifyUser } from "../apis";
 
 const Home = () => {
   const [rotation, setRotation] = useState(0);
@@ -19,6 +19,7 @@ const Home = () => {
   const [isShaking, setIsShaking] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [telegramUser, setTelegramUser] = useState(null);
 
   const shakeThreshold = 15;
   const { addToast } = useToast();
@@ -29,42 +30,71 @@ const Home = () => {
     { icon: Gift, label: "Rewards", value: rewards },
   ];
 
-  // Authentication effect
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // Get Telegram WebApp data
-        const webApp = window.Telegram?.WebApp;
-        if (!webApp) {
-          throw new Error("Telegram WebApp is not available");
-        }
 
-        const initData = webApp.initData;
-        const userData = await verifyUser(initData);
-        setUser(userData);
-        addToast({
-          title: "Welcome! 👋",
-          description: `Successfully authenticated as ${userData.username}`,
-          duration: 3000,
-        });
+  useEffect(() => {
+    const initTelegram = async () => {
+      try {
+        const script = document.createElement("script");
+        script.src = "https://telegram.org/js/telegram-web-app.js"
+        script.async = true;
+
+        script.onload = async () => {
+          window.Telegram.WebApp.ready();
+
+          const initDataRaw = window.Telegram.WebApp.initData;
+          if (!initDataRaw) {
+            throw new Error("No init data available");
+          }
+
+          // Verify user
+          try {
+            const userData = await verifyUser(initDataRaw);
+            setUser(userData);
+            addToast({
+              title: "Welcome! 👋",
+              description: `Successfully authenticated as ${userData.username}`,
+              duration: 3000,
+            });
+          } catch (verifyError) {
+            console.error("Error verifying user:", verifyError);
+            addToast({
+              title: "Authentication Error",
+              description: "Failed to verify user with backend",
+              duration: 5000,
+              variant: "destructive",
+            });
+          }
+        };
+
+        document.body.appendChild(script);
       } catch (error) {
+        console.error("Telegram WebApp initialization error:", error);
         addToast({
           title: "Authentication Error",
-          description: "Failed to authenticate. Please try again.",
+          description: "Failed to initialize Telegram WebApp",
           duration: 5000,
           variant: "destructive",
         });
-        console.error("Authentication error:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeUser();
+    initTelegram();
+
+    // Cleanup
+    return () => {
+      const script = document.querySelector(
+        'script[src="https://telegram.org/js/telegram-web-app.js"]'
+      );
+      if (script) {
+        document.body.removeChild(script);
+      }
+    };
   }, [addToast]);
 
+
   useEffect(() => {
-    // Auto-mining reward timer
     let miningTimer;
     const startMiningTimer = () => {
       miningTimer = setTimeout(() => {
