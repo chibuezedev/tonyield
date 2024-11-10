@@ -6,7 +6,7 @@ import ThemeProvider, { fadeInVariants } from "./themeProvider";
 import Button from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useToast } from "./toastProvider";
-import { verifyUser } from "../apis";
+import { verifyUser } from "../apis"; 
 
 const Home = () => {
   const [rotation, setRotation] = useState(0);
@@ -17,11 +17,11 @@ const Home = () => {
   const [level, setLevel] = useState(1);
   const [experience, setExperience] = useState(0);
   const [isShaking, setIsShaking] = useState(false);
-  const [user, setUser] = useState();
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const shakeThreshold = 15;
   const { addToast } = useToast();
-  
 
   const stats = [
     { icon: Trophy, label: "Level", value: level },
@@ -29,89 +29,39 @@ const Home = () => {
     { icon: Gift, label: "Rewards", value: rewards },
   ];
 
-  // Initialize Telegram WebApp with fallback
-const initTelegramWebApp = () => {
-  if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-    
-    // Set theme variables
-    document.documentElement.style.setProperty(
-      "--tg-theme-bg-color",
-      tg.backgroundColor || "#ffffff"
-    );
-    document.documentElement.style.setProperty(
-      "--tg-theme-text-color",
-      tg.textColor || "#000000"
-    );
-    document.documentElement.style.setProperty(
-      "--tg-theme-button-color",
-      tg.buttonColor || "#3390ec"
-    );
-    document.documentElement.style.setProperty(
-      "--tg-theme-button-text-color",
-      tg.buttonTextColor || "#ffffff"
-    );
-    
-    return tg;
-  }
-  
-  // Fallback object for development/testing
-  return {
-    ready: () => {},
-    expand: () => {},
-    sendData: async () => ({ success: true }),
-    showAlert: (msg) => alert(msg),
-    showConfirm: (msg) => window.confirm(msg),
-    backgroundColor: "#ffffff",
-    textColor: "#000000",
-    buttonColor: "#3390ec",
-    buttonTextColor: "#ffffff"
-  };
-};
-
-  
-const [tg] = useState(initTelegramWebApp());
-
-useEffect(() => {
-  tg.ready();
-  tg.expand();
-
-  // Set Telegram theme variables
-  document.documentElement.style.setProperty(
-    "--tg-theme-bg-color",
-    tg.backgroundColor
-  );
-  document.documentElement.style.setProperty(
-    "--tg-theme-text-color",
-    tg.textColor
-  );
-  document.documentElement.style.setProperty(
-    "--tg-theme-button-color",
-    tg.buttonColor
-  );
-  document.documentElement.style.setProperty(
-    "--tg-theme-button-text-color",
-    tg.buttonTextColor
-  );
-}, []);
-
+  // Authentication effect
   useEffect(() => {
-    const fetchUser = async () => {
+    const initializeUser = async () => {
       try {
-        const initData = tg.initData;
-        const telegramUser = await verifyUser(initData);
-        console.log(telegramUser)
-        setUser(telegramUser);
+        // Get Telegram WebApp data
+        const webApp = window.Telegram?.WebApp;
+        if (!webApp) {
+          throw new Error("Telegram WebApp is not available");
+        }
+
+        const initData = webApp.initData;
+        const userData = await verifyUser(initData);
+        setUser(userData);
+        addToast({
+          title: "Welcome! 👋",
+          description: `Successfully authenticated as ${userData.username}`,
+          duration: 3000,
+        });
       } catch (error) {
-        addToast('User verification failed', { appearance: 'error' });
-        console.error('Error verifying user:', error);
+        addToast({
+          title: "Authentication Error",
+          description: "Failed to authenticate. Please try again.",
+          duration: 5000,
+          variant: "destructive",
+        });
+        console.error("Authentication error:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
-  
-    fetchUser();
-  }, [addToast, tg.initData]);
+
+    initializeUser();
+  }, [addToast]);
 
   useEffect(() => {
     // Auto-mining reward timer
@@ -126,12 +76,14 @@ useEffect(() => {
           description: `${newReward} tokens are ready to be claimed!`,
           duration: 5000,
         });
-      }, 1800000); // 180000 == 3 minutes
+      }, 1800000);
     };
 
-    startMiningTimer();
+    if (user) {
+      startMiningTimer();
+    }
     return () => clearTimeout(miningTimer);
-  }, [addToast, showModal]); // Restart timer when modal is closed
+  }, [addToast, showModal, user]);
 
   useEffect(() => {
     if (experience >= 1000) {
@@ -152,6 +104,8 @@ useEffect(() => {
     let shakeTimeout;
 
     const handleShake = (event) => {
+      if (!user) return; // Only handle shakes if user is authenticated
+
       const { accelerationIncludingGravity } = event;
       if (!accelerationIncludingGravity) return;
 
@@ -161,14 +115,12 @@ useEffect(() => {
       if (movement > shakeThreshold) {
         const currentTime = new Date().getTime();
         if (currentTime - lastShakeTime > 100) {
-          // Throttle updates
           setIsShaking(true);
           setRotation((prev) => prev + 45);
           setRewards((prev) => prev + Math.floor(Math.random() * 10) + 1);
           setExperience((prev) => Math.min(prev + 5, 100));
           setLastShakeTime(currentTime);
 
-          // Reset shaking state after a delay
           clearTimeout(shakeTimeout);
           shakeTimeout = setTimeout(() => setIsShaking(false), 500);
         }
@@ -189,34 +141,53 @@ useEffect(() => {
       }
       clearTimeout(shakeTimeout);
     };
-  }, [lastShakeTime]);
+  }, [lastShakeTime, user]);
 
   const handleManualShake = () => {
+    if (!user) return; // Only allow shakes if authenticated
+
     const currentTime = new Date().getTime();
     if (currentTime - lastShakeTime > 100) {
-      // Apply same throttle as device shake
       setIsShaking(true);
       setRotation((prev) => prev + 45);
       setRewards((prev) => prev + Math.floor(Math.random() * 10) + 1);
       setExperience((prev) => Math.min(prev + 10, 100));
       setLastShakeTime(currentTime);
 
-      // Reset shaking state
       setTimeout(() => setIsShaking(false), 500);
     }
   };
 
-  const handleConnectWallet = () => {
+  const handleConnectWallet = async () => {
+    if (!user) {
+      addToast({
+        title: "Authentication Required",
+        description: "Please authenticate with Telegram first",
+        duration: 3000,
+        variant: "destructive",
+      });
+      return;
+    }
     console.log("Connecting wallet...");
   };
 
   const handleJoinCommunity = () => {
+    if (!user) return;
     console.log("Joining community...");
   };
 
   const handleCheckRewards = () => {
+    if (!user) return;
     console.log("Checking rewards...");
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <ThemeProvider>
@@ -226,16 +197,30 @@ useEffect(() => {
         animate="visible"
         variants={fadeInVariants}
       >
-        {/* Header with Shake Indicator */}
+        {/* Header with Authentication Status */}
         <motion.div
           className="w-full max-w-md mb-8 relative"
           variants={fadeInVariants}
         >
+          {user ? (
+            <div className="mb-4 text-center">
+              <p className="text-sm text-gray-400">Welcome back</p>
+              <p className="text-lg font-bold">{user.username}</p>
+            </div>
+          ) : (
+            <div className="mb-4 text-center">
+              <p className="text-sm text-red-400">
+                Please authenticate with Telegram
+              </p>
+            </div>
+          )}
+
           <Button
             variant="ghost"
             size="lg"
             onClick={handleConnectWallet}
             className="w-full flex items-center justify-center gap-2 border border-white/20"
+            disabled={!user}
           >
             <Wallet className="w-5 h-5" />
             Connect Wallet
@@ -252,7 +237,7 @@ useEffect(() => {
           )}
         </motion.div>
 
-        {/* Game Stats */}
+        {/* Rest of the component remains the same */}
         <motion.div
           className="w-full max-w-md grid grid-cols-3 gap-4 mb-8"
           variants={fadeInVariants}
@@ -273,16 +258,15 @@ useEffect(() => {
           ))}
         </motion.div>
 
-        {/* Game Card */}
         <GameCard
           rotation={rotation}
           handleManualShake={handleManualShake}
           level={level}
           experience={experience}
           isShaking={isShaking}
+          disabled={!user}
         />
 
-        {/* Action Buttons */}
         <motion.div
           className="w-full max-w-md space-y-4 mt-8"
           variants={fadeInVariants}
@@ -292,24 +276,24 @@ useEffect(() => {
             size="lg"
             onClick={handleJoinCommunity}
             className="w-full flex items-center justify-center gap-2 bg-white/10"
+            disabled={!user}
           >
             <Users className="w-5 h-5" />
             Join Community
           </Button>
 
-          {/* Check Rewards Button */}
           <Button
             variant="secondary"
             size="lg"
             onClick={handleCheckRewards}
             className="w-full flex items-center justify-center gap-2"
+            disabled={!user}
           >
             <Gift className="w-5 h-5" />
             Check Rewards
           </Button>
         </motion.div>
 
-        {/* Reward Modal */}
         <AnimatePresence>
           {showModal && (
             <Dialog open={showModal} onOpenChange={setShowModal}>
