@@ -6,6 +6,7 @@ import ThemeProvider, { fadeInVariants } from "./themeProvider";
 import Button from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useToast } from "./toastProvider";
+import { verifyUser } from "../apis";
 
 const Home = () => {
   const [rotation, setRotation] = useState(0);
@@ -16,15 +17,32 @@ const Home = () => {
   const [level, setLevel] = useState(1);
   const [experience, setExperience] = useState(0);
   const [isShaking, setIsShaking] = useState(false);
+  const [user, setUser] = useState();
+
   const shakeThreshold = 15;
   const { addToast } = useToast();
-
+  const initData = window.Telegram.WebApp.initData;
 
   const stats = [
     { icon: Trophy, label: "Level", value: level },
     { icon: Activity, label: "Experience", value: `${experience}/100` },
     { icon: Gift, label: "Rewards", value: rewards },
   ];
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const telegramUser = await verifyUser(initData);
+        console.log(telegramUser)
+        setUser(telegramUser);
+      } catch (error) {
+        addToast('User verification failed', { appearance: 'error' });
+        console.error('Error verifying user:', error);
+      }
+    };
+  
+    fetchUser();
+  }, [initData, addToast]);
 
   useEffect(() => {
     // Auto-mining reward timer
