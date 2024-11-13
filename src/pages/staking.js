@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,19 +12,9 @@ import {
   Settings,
   Wallet,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import Button from "../ui/button";
-import TonConnect from '@tonconnect/sdk';
-
-// Initialize TON Connect
-const connector = new TonConnect({
-  manifestUrl: 'https://<YOUR_MANIFEST_URL>/tonconnect-manifest.json'
-});
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 
 // Animation variants
 const fadeInUp = {
@@ -32,7 +23,6 @@ const fadeInUp = {
   exit: { opacity: 0, y: -20 },
 };
 
-// Success Animation Component
 const SuccessAnimation = () => (
   <motion.div
     initial={{ scale: 0, opacity: 0 }}
@@ -57,7 +47,6 @@ const SuccessAnimation = () => (
   </motion.div>
 );
 
-// Stats Card Component
 const StatCard = ({ label, value, icon: Icon, trend, className = "" }) => (
   <motion.div
     variants={fadeInUp}
@@ -69,14 +58,147 @@ const StatCard = ({ label, value, icon: Icon, trend, className = "" }) => (
     </div>
     <div className="text-xl font-bold mt-2">{value}</div>
     {trend && (
-      <div className={`text-sm ${trend.includes('+') ? 'text-green-500' : 'text-red-500'}`}>
+      <div
+        className={`text-sm ${
+          trend.includes("+") ? "text-green-500" : "text-red-500"
+        }`}
+      >
         {trend}
       </div>
     )}
   </motion.div>
 );
 
+const WalletConnection = () => {
+  const [tonConnectUI] = useTonConnectUI();
+  const wallet = useTonWallet();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
+  const [showErrorToast, setShowErrorToast] = useState(false);
+
+  // Clear error toast after 5 seconds
+  useEffect(() => {
+    if (showErrorToast) {
+      const timer = setTimeout(() => {
+        setShowErrorToast(false);
+        setConnectionError("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showErrorToast]);
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    setConnectionError("");
+
+    try {
+      await tonConnectUI.connectWallet();
+    } catch (error) {
+      let errorMessage = "Failed to connect wallet";
+
+      // Handle specific error cases
+      if (error.message?.includes("User rejected")) {
+        errorMessage = "Connection rejected by user";
+      } else if (error.message?.includes("Wallet not found")) {
+        errorMessage = "No compatible wallet found";
+      } else if (error.message?.includes("timeout")) {
+        errorMessage = "Connection timed out";
+      }
+
+      setConnectionError(errorMessage);
+      setShowErrorToast(true);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await tonConnectUI.disconnect();
+    } catch (error) {
+      console.log("Disconnect error:", error);
+      setConnectionError("Failed to disconnect wallet");
+      setShowErrorToast(true);
+    }
+  };
+
+  // Connection status check
+  const isConnected = !!wallet;
+
+  return (
+    <div className="relative">
+      {!isConnected ? (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={handleConnect}
+          disabled={isConnecting}
+          className="w-full py-3 rounded-xl font-medium flex items-center justify-center space-x-2"
+          style={{
+            backgroundColor: "var(--tg-theme-button-color)",
+            color: "var(--tg-theme-button-text-color)",
+            opacity: isConnecting ? 0.7 : 1,
+          }}
+        >
+          <Wallet className="w-5 h-5" />
+          <span>
+            {isConnecting ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />
+                <span>Connecting...</span>
+              </div>
+            ) : (
+              "Connect Wallet"
+            )}
+          </span>
+        </motion.button>
+      ) : (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-white/10">
+          <div className="flex items-center space-x-2">
+            <Wallet className="w-5 h-5" />
+            <span className="text-sm truncate">
+              {wallet.account.address.slice(0, 6)}...
+              {wallet.account.address.slice(-4)}
+            </span>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleDisconnect}
+            className="text-sm opacity-70 hover:opacity-100 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition duration-200 ease-in-out shadow-md"
+          >
+            Disconnect
+          </motion.button>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      <AnimatePresence>
+        {showErrorToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-500 text-white rounded-lg shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <span>{connectionError}</span>
+              <button
+                onClick={() => setShowErrorToast(false)}
+                className="ml-2 hover:opacity-80"
+              >
+                ×
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const StakingPool = () => {
+  const wallet = useTonWallet();
+  const isConnected = !!wallet;
+
   // State management
   const [tg] = useState(() => {
     const webApp = window.Telegram?.WebApp || {
@@ -85,12 +207,24 @@ const StakingPool = () => {
       buttonColor: "#3390ec",
       buttonTextColor: "#ffffff",
     };
-    
-    document.documentElement.style.setProperty("--tg-theme-bg-color", webApp.backgroundColor);
-    document.documentElement.style.setProperty("--tg-theme-text-color", webApp.textColor);
-    document.documentElement.style.setProperty("--tg-theme-button-color", webApp.buttonColor);
-    document.documentElement.style.setProperty("--tg-theme-button-text-color", webApp.buttonTextColor);
-    
+
+    document.documentElement.style.setProperty(
+      "--tg-theme-bg-color",
+      webApp.backgroundColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-text-color",
+      webApp.textColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-color",
+      webApp.buttonColor
+    );
+    document.documentElement.style.setProperty(
+      "--tg-theme-button-text-color",
+      webApp.buttonTextColor
+    );
+
     return webApp;
   });
 
@@ -100,8 +234,6 @@ const StakingPool = () => {
   const [error, setError] = useState("");
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
 
   const [poolInfo, setPoolInfo] = useState({
     totalStaked: 2450000,
@@ -113,62 +245,27 @@ const StakingPool = () => {
     activeStakers: 1250,
   });
 
-  // Initialize wallet connection
+  // Fetch wallet balance when connected
   useEffect(() => {
-    const initWallet = async () => {
-      // Subscribe to wallet events
-      connector.onStatusChange(async (wallet) => {
-        if (wallet) {
-          setWalletAddress(wallet.account.address);
-          // Fetch wallet balance
-          try {
-            // Replace with actual TON balance fetching
-            const response = await fetch(`https://api.ton.sh/v1/account/${wallet.account.address}/balance`);
-            const data = await response.json();
-            setPoolInfo(prev => ({
-              ...prev,
-              walletBalance: parseFloat(data.balance) / 1e9 // Convert from nanoTON to TON
-            }));
-          } catch (error) {
-            console.error("Error fetching balance:", error);
-          }
-        } else {
-          setWalletAddress(null);
-          setPoolInfo(prev => ({ ...prev, walletBalance: 0 }));
+    const fetchBalance = async () => {
+      if (isConnected && wallet?.account.address) {
+        try {
+          const response = await fetch(
+            `https://api.ton.sh/v1/account/${wallet.account.address}/balance`
+          );
+          const data = await response.json();
+          setPoolInfo((prev) => ({
+            ...prev,
+            walletBalance: parseFloat(data.balance) / 1e9,
+          }));
+        } catch (error) {
+          console.error("Error fetching balance:", error);
         }
-      });
-
-      // Restore session
-      const restoredSession = await connector.restoreConnection();
-      if (restoredSession) {
-        setWalletAddress(restoredSession.account.address);
       }
     };
 
-    initWallet();
-  }, []);
-
-  // Connect wallet function
-  const connectWallet = async () => {
-    try {
-      setIsWalletConnecting(true);
-      await connector.connect();
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-      setError("Failed to connect wallet. Please try again.");
-    } finally {
-      setIsWalletConnecting(false);
-    }
-  };
-
-  // Disconnect wallet function
-  const disconnectWallet = async () => {
-    try {
-      await connector.disconnect();
-    } catch (error) {
-      console.error("Error disconnecting wallet:", error);
-    }
-  };
+    fetchBalance();
+  }, [isConnected, wallet]);
 
   // Calculate APR based on staking days
   const calculateAPR = (days) => {
@@ -185,18 +282,20 @@ const StakingPool = () => {
 
   // Check if staking is possible
   const canStake = () => {
-    if (!stakeAmount || !walletAddress) return false;
+    if (!stakeAmount || !isConnected) return false;
     const amount = parseFloat(stakeAmount);
-    return amount >= poolInfo.minStake && 
-           amount <= poolInfo.walletBalance && 
-           !isLoading;
+    return (
+      amount >= poolInfo.minStake &&
+      amount <= poolInfo.walletBalance &&
+      !isLoading
+    );
   };
 
   // Staking Form Component
   const StakingForm = () => {
     const handleSubmit = async (e) => {
       e.preventDefault();
-      if (!walletAddress) {
+      if (!isConnected) {
         if (tg.showAlert) {
           tg.showAlert("Please connect your wallet first.");
         }
@@ -204,33 +303,32 @@ const StakingPool = () => {
       }
 
       setIsLoading(true);
-      
+
       try {
         // Create transaction
-        const stakingAmount = parseFloat(stakeAmount) * 1e9; // Convert to nanoTON
+        const stakingAmount = parseFloat(stakeAmount) * 1e9; //to nanoTON
+
         const transaction = {
-          validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+          validUntil: Math.floor(Date.now() / 1000) + 600,
           messages: [
             {
-              address: "EQYour_Staking_Contract_Address",
+              address: "my_Staking_Contract_Address",
               amount: stakingAmount.toString(),
-              payload: "te6ccgEBAQEAKgAAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP_",  // Replace with actual payload
+              payload:
+                "te6ccgEBAQEAKgAAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP_",
             },
           ],
         };
 
-        // Send transaction
-        const result = await connector.sendTransaction(transaction);
-        
         // Handle success
         setShowSuccessAnimation(true);
-        setPoolInfo(prev => ({
+        setPoolInfo((prev) => ({
           ...prev,
           yourStake: prev.yourStake + parseFloat(stakeAmount),
           totalStaked: prev.totalStaked + parseFloat(stakeAmount),
-          walletBalance: prev.walletBalance - parseFloat(stakeAmount)
+          walletBalance: prev.walletBalance - parseFloat(stakeAmount),
         }));
-        
+
         setStakeAmount("");
         setTimeout(() => setShowSuccessAnimation(false), 2000);
       } catch (error) {
@@ -249,52 +347,23 @@ const StakingPool = () => {
       if (/^\d*\.?\d*$/.test(value)) {
         setStakeAmount(value);
         if (value) {
-          const estimatedRewards = calculateEstimatedRewards(parseFloat(value), stakingDays);
-          setPoolInfo(prev => ({ ...prev, estimatedRewards }));
+          const estimatedRewards = calculateEstimatedRewards(
+            parseFloat(value),
+            stakingDays
+          );
+          setPoolInfo((prev) => ({ ...prev, estimatedRewards }));
         }
       }
     };
 
     return (
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Wallet Connection */}
-        <div className="mb-6">
-          {!walletAddress ? (
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={connectWallet}
-              disabled={isWalletConnecting}
-              className="w-full py-3 rounded-xl font-medium flex items-center justify-center space-x-2"
-              style={{
-                backgroundColor: "var(--tg-theme-button-color)",
-                color: "var(--tg-theme-button-text-color)",
-              }}
-            >
-              <Wallet className="w-5 h-5" />
-              <span>{isWalletConnecting ? "Connecting..." : "Connect Wallet"}</span>
-            </motion.button>
-          ) : (
-            <div className="flex items-center justify-between p-4 rounded-xl bg-white/10">
-              <div className="flex items-center space-x-2">
-                <Wallet className="w-5 h-5" />
-                <span className="text-sm truncate">{walletAddress}</span>
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={disconnectWallet}
-                className="text-sm opacity-60 hover:opacity-100"
-              >
-                Disconnect
-              </motion.button>
-            </div>
-          )}
-        </div>
-
-        {/* Rest of the form components */}
         <div className="space-y-4">
           {/* Amount Input */}
           <div>
-            <label className="text-sm opacity-60 mb-1 block">Amount to Stake</label>
+            <label className="text-sm opacity-60 mb-1 block">
+              Amount to Stake
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -306,9 +375,11 @@ const StakingPool = () => {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setStakeAmount(poolInfo.walletBalance.toString())}
+                onClick={() =>
+                  setStakeAmount(poolInfo.walletBalance.toString())
+                }
                 className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded-md text-sm bg-blue-500"
-                disabled={!walletAddress}
+                disabled={!isConnected}
               >
                 MAX
               </motion.button>
@@ -320,7 +391,9 @@ const StakingPool = () => {
 
           {/* Duration Selector */}
           <div>
-            <label className="text-sm opacity-60 mb-1 block">Staking Duration</label>
+            <label className="text-sm opacity-60 mb-1 block">
+              Staking Duration
+            </label>
             <div className="grid grid-cols-3 gap-2">
               {[7, 30, 90].map((days) => (
                 <motion.button
@@ -330,14 +403,25 @@ const StakingPool = () => {
                   onClick={() => {
                     setStakingDays(days);
                     if (stakeAmount) {
-                      const estimatedRewards = calculateEstimatedRewards(parseFloat(stakeAmount), days);
-                      setPoolInfo(prev => ({ ...prev, estimatedRewards }));
+                      const estimatedRewards = calculateEstimatedRewards(
+                        parseFloat(stakeAmount),
+                        days
+                      );
+                      setPoolInfo((prev) => ({ ...prev, estimatedRewards }));
                     }
                   }}
-                  className={`py-2 rounded-lg ${stakingDays === days ? 'ring-2' : ''}`}
+                  className={`py-2 rounded-lg ${
+                    stakingDays === days ? "ring-2" : ""
+                  }`}
                   style={{
-                    backgroundColor: stakingDays === days ? 'var(--tg-theme-button-color)' : 'var(--tg-theme-bg-color)',
-                    color: stakingDays === days ? 'var(--tg-theme-button-text-color)' : 'var(--tg-theme-text-color)',
+                    backgroundColor:
+                      stakingDays === days
+                        ? "var(--tg-theme-button-color)"
+                        : "var(--tg-theme-bg-color)",
+                    color:
+                      stakingDays === days
+                        ? "var(--tg-theme-button-text-color)"
+                        : "var(--tg-theme-text-color)",
                   }}
                 >
                   {days} days
@@ -399,7 +483,6 @@ const StakingPool = () => {
     );
   };
 
-  // Rest of the component remains the same...
   return (
     <div className="min-h-screen pb-6">
       <motion.div
@@ -436,7 +519,10 @@ const StakingPool = () => {
         </div>
 
         {/* Staking Form */}
-        <StakingForm />
+        <WalletConnection />
+
+        {/* Only show staking form if wallet is connected */}
+        {wallet && <StakingForm />}
 
         {/* Success Animation */}
         <AnimatePresence>
@@ -452,7 +538,7 @@ const StakingPool = () => {
             <div className="space-y-4">
               {[
                 { label: "Notification Preferences", icon: Bell },
-                { label: "Security Settings", icon: Shield }
+                { label: "Security Settings", icon: Shield },
               ].map((setting, index) => (
                 <motion.button
                   key={index}
@@ -493,31 +579,4 @@ const StakingPool = () => {
   );
 };
 
-// Add TON Connect configuration
-const tonConnectConfig = {
-  manifestUrl: 'https://<YOUR_MANIFEST_URL>/tonconnect-manifest.json',
-  connectItems: [
-    { name: 'TON Wallet', bridgeUrl: 'https://bridge.tonhub.com' },
-    { name: 'Tonkeeper', universalUrl: 'https://app.tonkeeper.com/ton-connect' }
-  ]
-};
-
-// HOC to wrap the component with TON Connect Provider
-const StakingPoolWithWallet = () => {
-  useEffect(() => {
-    // Initialize TON Connect
-    const initTonConnect = async () => {
-      try {
-        await connector.connect(tonConnectConfig);
-      } catch (error) {
-        console.error('Failed to initialize TON Connect:', error);
-      }
-    };
-
-    initTonConnect();
-  }, []);
-
-  return <StakingPool />;
-};
-
-export default StakingPoolWithWallet;
+export default StakingPool;
